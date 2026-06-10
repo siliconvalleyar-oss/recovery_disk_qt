@@ -1,0 +1,37 @@
+# Build
+build/
+cmake-build-*/
+*.o
+*.obj
+*.exe
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+CMakeLists.txt.user
+CMakeLists.txt.user.*
+*.creator
+*.files
+*.includes
+*.config
+*.created
+*.autosave
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Recovery state (keep local, don't commit)
+config/
+state.json
+
+# Temp recovery chunks
+/tmp/recovery_qt/
