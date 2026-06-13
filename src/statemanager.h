@@ -8,7 +8,7 @@
 #include <QDateTime>
 
 struct RecoveryState {
-    int version = 2;
+    int version = 3;
     QString partition = "/dev/sdd3";
     qint64 totalSize = 0;
     int chunkSizeMb = 500;
@@ -30,7 +30,20 @@ struct RecoveryState {
     bool deepScan = false;
     bool organizeByType = true;
     bool reportOnly = false;
+    bool useStrings = false;
+    bool compressZip = false;
     QString diskModel;
+    QString smartHealth;
+    QString logFilePath;
+    QString reportFilePath;
+
+    // File type categories for extended support
+    QStringList wordExts = {"doc","docx","dot","dotx","docm"};
+    QStringList excelExts = {"xls","xlsx","xlsm","xlsb","xltx","xltm","csv"};
+    QStringList pptExts = {"ppt","pptx","pps","ppsx","pptm"};
+    QStringList pdfExts = {"pdf"};
+    QStringList rtfExts = {"rtf"};
+    QStringList textExts = {"txt","text","log","md"};
 
     bool isValid() const { return !partition.isEmpty() && totalSize > 0; }
 };

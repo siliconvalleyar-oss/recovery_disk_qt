@@ -75,12 +75,15 @@ void MainWindow::setupUi() {
     m_filesFoundLabel->setStyleSheet("font-weight: bold; color: #4caf50;");
     m_chunksLabel = new QLabel("Chunks: 0");
     m_elapsedLabel = new QLabel("Tiempo: 0s");
+    m_smartHealthLabel = new QLabel("SMART: --");
+    m_smartHealthLabel->setStyleSheet("color: #888; font-weight: bold;");
 
     statsGrid->addWidget(m_partitionLabel, 0, 0);
     statsGrid->addWidget(m_modeLabel, 0, 1);
     statsGrid->addWidget(m_filesFoundLabel, 0, 2);
     statsGrid->addWidget(m_chunksLabel, 0, 3);
     statsGrid->addWidget(m_elapsedLabel, 0, 4);
+    statsGrid->addWidget(m_smartHealthLabel, 0, 5);
 
     mainLayout->addWidget(statsGroup);
 
@@ -231,6 +234,20 @@ void MainWindow::onStartRecovery(const RecoveryState &state) {
     m_partitionLabel->setText("Particion: " + state.partition);
     m_modeLabel->setText("Modo: " + QString(state.reportOnly ? "Solo reporte" : "Completo"));
 
+    // SMART health
+    if (!state.smartHealth.isEmpty()) {
+        m_smartHealthLabel->setText("SMART: " + state.smartHealth);
+        if (state.smartHealth.contains("PASSED"))
+            m_smartHealthLabel->setStyleSheet("color: #4caf50; font-weight: bold;");
+        else if (state.smartHealth.contains("no disponible"))
+            m_smartHealthLabel->setStyleSheet("color: #888; font-weight: bold;");
+        else
+            m_smartHealthLabel->setStyleSheet("color: #ff5252; font-weight: bold;");
+    } else {
+        m_smartHealthLabel->setText("SMART: --");
+        m_smartHealthLabel->setStyleSheet("color: #888; font-weight: bold;");
+    }
+
     m_logModel->clear();
     m_summaryModel->removeRows(0, m_summaryModel->rowCount());
     m_fileModel->clear();
@@ -337,6 +354,14 @@ void MainWindow::onFinished(bool success) {
     if (success) {
         m_statusLabel->setText("Recuperacion completada exitosamente");
         m_progressBar->setValue(100);
+
+        RecoveryState &state = m_engine->recoveryState();
+        QString info = "Completado";
+        if (!state.logFilePath.isEmpty())
+            info += " | Log: " + state.logFilePath;
+        if (!state.reportFilePath.isEmpty())
+            info += " | Reporte: " + state.reportFilePath;
+        statusBar()->showMessage(info);
     }
     updateSummary();
     updateButtonStates();

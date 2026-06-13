@@ -1,4 +1,5 @@
 #include "settingsdialog.h"
+#include "recoveryengine.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -15,6 +16,7 @@
 #include <QHeaderView>
 #include <QScrollArea>
 #include <QFont>
+#include <QMessageBox>
 #include <cmath>
 
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent) {
@@ -77,6 +79,16 @@ void SettingsDialog::setupUi() {
     m_diskSizeBar->hide();
     diskLayout->addWidget(m_diskSizeBar);
 
+    auto *healthRow = new QHBoxLayout;
+    m_smartHealthLabel = new QLabel("SMART: --");
+    m_smartHealthLabel->setStyleSheet("color: #888; font-weight: bold;");
+    healthRow->addWidget(m_smartHealthLabel);
+    m_freeSpaceLabel = new QLabel("Espacio libre: --");
+    m_freeSpaceLabel->setStyleSheet("color: #888;");
+    healthRow->addWidget(m_freeSpaceLabel);
+    healthRow->addStretch();
+    diskLayout->addLayout(healthRow);
+
     mainLayout->addWidget(diskGroup);
 
     // ========== MODE ==========
@@ -101,23 +113,27 @@ void SettingsDialog::setupUi() {
     auto *optGroup = new QGroupBox("Opciones avanzadas");
     auto *optGrid = new QGridLayout(optGroup);
 
-    m_chkExcludeWindows = new QCheckBox("Excluir archivos de sistema Windows (.dll, .exe, .sys...)");
+    m_chkExcludeWindows = new QCheckBox("Excluir archivos de sistema Windows (.dll, .exe, .sys...) y <1KB");
     m_chkExcludeWindows->setChecked(true);
-    m_chkExcludeWindows->setToolTip("Filtra automaticamente archivos del sistema operativo Windows");
+    m_chkExcludeWindows->setToolTip("Filtra automaticamente archivos del sistema operativo Windows y falsos positivos de menos de 1KB");
     optGrid->addWidget(m_chkExcludeWindows, 0, 0, 1, 2);
 
     m_chkDeepScan = new QCheckBox("Busqueda profunda (usa photorec + foremost, mas lento)");
     m_chkDeepScan->setToolTip("Ejecuta ambas herramientas de recuperacion secuencialmente para maxima cobertura");
     optGrid->addWidget(m_chkDeepScan, 1, 0, 1, 2);
 
+    m_chkUseStrings = new QCheckBox("Extraer cadenas de texto con dd+strings (busca contenido legible)");
+    m_chkUseStrings->setToolTip("Extrae texto legible de la particion usando dd+strings, util para encontrar referencias a documentos");
+    optGrid->addWidget(m_chkUseStrings, 2, 0, 1, 2);
+
     m_chkOrganize = new QCheckBox("Organizar archivos por tipo automaticamente");
     m_chkOrganize->setChecked(true);
     m_chkOrganize->setToolTip("Clasifica los documentos recuperados en carpetas: Word, Excel, PDF...");
-    optGrid->addWidget(m_chkOrganize, 2, 0, 1, 2);
+    optGrid->addWidget(m_chkOrganize, 3, 0, 1, 2);
 
     m_chkCompress = new QCheckBox("Comprimir resultados en ZIP al finalizar");
     m_chkCompress->setToolTip("Empaqueta todos los archivos recuperados en un archivo .zip");
-    optGrid->addWidget(m_chkCompress, 3, 0, 1, 2);
+    optGrid->addWidget(m_chkCompress, 4, 0, 1, 2);
 
     mainLayout->addWidget(optGroup);
 
@@ -125,27 +141,31 @@ void SettingsDialog::setupUi() {
     auto *typeGroup = new QGroupBox("Tipos de documento a recuperar");
     auto *typeGrid = new QGridLayout(typeGroup);
 
-    m_chkDoc  = new QCheckBox(".doc");   m_chkDoc->setChecked(true);
-    m_chkDocx = new QCheckBox(".docx");  m_chkDocx->setChecked(true);
-    m_chkXls  = new QCheckBox(".xls");   m_chkXls->setChecked(true);
-    m_chkXlsx = new QCheckBox(".xlsx");  m_chkXlsx->setChecked(true);
-    m_chkPpt  = new QCheckBox(".ppt");   m_chkPpt->setChecked(true);
-    m_chkPptx = new QCheckBox(".pptx");  m_chkPptx->setChecked(true);
-    m_chkPdf  = new QCheckBox(".pdf");   m_chkPdf->setChecked(true);
-    m_chkRtf  = new QCheckBox(".rtf");   m_chkRtf->setChecked(true);
-    m_chkTxt  = new QCheckBox(".txt");   m_chkTxt->setChecked(true);
-    m_chkCsv  = new QCheckBox(".csv");   m_chkCsv->setChecked(true);
+    auto *wordLabel = new QLabel("<b>Word</b>");
+    wordLabel->setStyleSheet("color: #4fc3f7;");
+    typeGrid->addWidget(wordLabel, 0, 0, 1, 4);
+    m_chkDoc  = new QCheckBox(".doc");   m_chkDoc->setChecked(true);   typeGrid->addWidget(m_chkDoc,  1, 0);
+    m_chkDocx = new QCheckBox(".docx");  m_chkDocx->setChecked(true);  typeGrid->addWidget(m_chkDocx, 1, 1);
 
-    typeGrid->addWidget(m_chkDoc,  0, 0);
-    typeGrid->addWidget(m_chkDocx, 0, 1);
-    typeGrid->addWidget(m_chkXls,  1, 0);
-    typeGrid->addWidget(m_chkXlsx, 1, 1);
-    typeGrid->addWidget(m_chkPpt,  2, 0);
-    typeGrid->addWidget(m_chkPptx, 2, 1);
-    typeGrid->addWidget(m_chkPdf,  3, 0);
-    typeGrid->addWidget(m_chkRtf,  3, 1);
-    typeGrid->addWidget(m_chkTxt,  4, 0);
-    typeGrid->addWidget(m_chkCsv,  4, 1);
+    auto *excelLabel = new QLabel("<b>Excel</b>");
+    excelLabel->setStyleSheet("color: #81c784;");
+    typeGrid->addWidget(excelLabel, 2, 0, 1, 4);
+    m_chkXls  = new QCheckBox(".xls");   m_chkXls->setChecked(true);   typeGrid->addWidget(m_chkXls,  3, 0);
+    m_chkXlsx = new QCheckBox(".xlsx");  m_chkXlsx->setChecked(true);  typeGrid->addWidget(m_chkXlsx, 3, 1);
+
+    auto *pptLabel = new QLabel("<b>PowerPoint</b>");
+    pptLabel->setStyleSheet("color: #ffb74d;");
+    typeGrid->addWidget(pptLabel, 4, 0, 1, 4);
+    m_chkPpt  = new QCheckBox(".ppt");   m_chkPpt->setChecked(true);   typeGrid->addWidget(m_chkPpt,  5, 0);
+    m_chkPptx = new QCheckBox(".pptx");  m_chkPptx->setChecked(true);  typeGrid->addWidget(m_chkPptx, 5, 1);
+
+    auto *otherLabel = new QLabel("<b>Otros</b>");
+    otherLabel->setStyleSheet("color: #ce93d8;");
+    typeGrid->addWidget(otherLabel, 6, 0, 1, 4);
+    m_chkPdf  = new QCheckBox(".pdf");   m_chkPdf->setChecked(true);   typeGrid->addWidget(m_chkPdf,  7, 0);
+    m_chkRtf  = new QCheckBox(".rtf");   m_chkRtf->setChecked(true);   typeGrid->addWidget(m_chkRtf,  7, 1);
+    m_chkTxt  = new QCheckBox(".txt");   m_chkTxt->setChecked(true);   typeGrid->addWidget(m_chkTxt,  8, 0);
+    m_chkCsv  = new QCheckBox(".csv");   m_chkCsv->setChecked(true);   typeGrid->addWidget(m_chkCsv,  8, 1);
 
     mainLayout->addWidget(typeGroup);
 
@@ -339,6 +359,8 @@ void SettingsDialog::onTreeItemClicked(QTreeWidgetItem *item, int) {
         m_selectedInfo->setText("Seleccione una particion (no un disco completo)");
         m_startBtn->setEnabled(false);
         m_diskSizeBar->hide();
+        m_smartHealthLabel->setText("SMART: --");
+        m_freeSpaceLabel->setText("Espacio libre: --");
         return;
     }
 
@@ -378,6 +400,36 @@ void SettingsDialog::onTreeItemClicked(QTreeWidgetItem *item, int) {
             "  background: #333; color: #ddd; }"
             "QProgressBar::chunk { background: qlineargradient(x1:0,y1:0,x2:1,y2:0,"
             "  stop:0 #2e7d32, stop:1 #4caf50); border-radius: 3px; }");
+
+    // Get SMART health info
+    QString diskPath = path;
+    // SMART works on the disk, not partition - get parent disk
+    if (item->parent()) {
+        QString parentText = item->parent()->text(0);
+        QString diskDev = parentText.split("  ").first().trimmed();
+        if (!diskDev.isEmpty()) diskPath = diskDev;
+    }
+    QString smart = RecoveryEngine::checkSmartHealth(diskPath);
+    if (smart == "PASSED" || smart == "PASSED ") {
+        m_smartHealthLabel->setText("SMART: " + smart);
+        m_smartHealthLabel->setStyleSheet("color: #4caf50; font-weight: bold;");
+    } else if (smart.contains("no disponible")) {
+        m_smartHealthLabel->setText("SMART: No disponible");
+        m_smartHealthLabel->setStyleSheet("color: #888; font-weight: bold;");
+    } else {
+        m_smartHealthLabel->setText("SMART: " + smart);
+        m_smartHealthLabel->setStyleSheet("color: #ff5252; font-weight: bold;");
+    }
+
+    // Check free space
+    qint64 freeBytes = RecoveryEngine::checkFreeSpace(m_outputDirEdit->text());
+    QString freeStr = bytesToString(freeBytes);
+    m_freeSpaceLabel->setText("Espacio libre: " + freeStr);
+    if (freeBytes < size) {
+        m_freeSpaceLabel->setStyleSheet("color: #ff5252;");
+    } else {
+        m_freeSpaceLabel->setStyleSheet("color: #81c784;");
+    }
 }
 
 void SettingsDialog::onReportOnlyToggled(bool checked) {
@@ -407,6 +459,22 @@ void SettingsDialog::onStartClicked() {
         m_selectedInfo->setStyleSheet("color: #ff5252; font-weight: bold;");
         return;
     }
+
+    // Check free space
+    qint64 freeBytes = RecoveryEngine::checkFreeSpace(s.outputDir);
+    if (freeBytes > 0 && freeBytes < s.totalSize && !s.reportOnly) {
+        QString warn = QString("Espacio libre insuficiente: %1 libre vs %2 de particion. Desea continuar?")
+            .arg(bytesToString(freeBytes)).arg(bytesToString(s.totalSize));
+
+        auto reply = QMessageBox::question(this, "Espacio insuficiente",
+            warn, QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (reply == QMessageBox::No) {
+            m_selectedInfo->setText("Seleccione otro directorio con mas espacio");
+            m_selectedInfo->setStyleSheet("color: #ff5252; font-weight: bold;");
+            return;
+        }
+    }
+
     QFileInfo fi(s.outputDir);
     if (!fi.exists()) QDir().mkpath(s.outputDir);
     QDir().mkpath(s.tmpDir);
@@ -451,7 +519,9 @@ RecoveryState SettingsDialog::getState() const {
     // Advanced options
     s.excludeWindows = m_chkExcludeWindows->isChecked();
     s.deepScan = m_chkDeepScan->isChecked();
+    s.useStrings = m_chkUseStrings->isChecked();
     s.organizeByType = m_chkOrganize->isChecked();
+    s.compressZip = m_chkCompress->isChecked();
 
     // Chunk size
     s.chunkSizeMb = m_chunkSizeSpin->value();
@@ -482,7 +552,9 @@ void SettingsDialog::setState(const RecoveryState &state) {
 
     m_chkExcludeWindows->setChecked(state.excludeWindows);
     m_chkDeepScan->setChecked(state.deepScan);
+    m_chkUseStrings->setChecked(state.useStrings);
     m_chkOrganize->setChecked(state.organizeByType);
+    m_chkCompress->setChecked(state.compressZip);
 
     m_chunkSizeSpin->setValue(state.chunkSizeMb);
     m_outputDirEdit->setText(state.outputDir);

@@ -1,80 +1,90 @@
-# Recovery Qt - GUI Application
+# Recovery Qt - Aplicación Gráfica de Recuperación de Discos
 
-## Description
-Qt5 C++ application for recovering documents from damaged/formatted Windows partitions. Supports pause/resume across reboots via chunk-based processing with state persistence.
+## Descripción
+Aplicación Qt5 C++ que integra todas las técnicas de recuperación de documentos desde particiones dañadas/formateadas. Combina foremost, photorec, dd+strings, compresión ZIP, generación de reportes, pausa/reanudación entre reinicios y monitoreo en tiempo real.
 
-## Quick Start
+## Compilación Rápida
 ```bash
-cd recovery_qt
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
+cd recovery_qt && mkdir -p build && cd build
+cmake .. && make -j$(nproc)
 sudo ./recovery_qt
 ```
 
-## Dependencies
+## Dependencias
 ```bash
-sudo apt install qtbase5-dev qttools5-dev foremost testdisk cmake g++
+sudo apt install qtbase5-dev qttools5-dev foremost testdisk pv smartmontools cmake g++
 ```
 
-## Architecture
+## Arquitectura
 ```
 recovery_qt/
 ├── CMakeLists.txt
-├── .gitignore
 ├── .opencode/skills/recovery-qt.md
 └── src/
-    ├── main.cpp              -- Entry point, dark theme
-    ├── mainwindow.h/.cpp     -- Main UI: toolbar, progress, tabs
-    ├── settingsdialog.h/.cpp -- Config: disk tree, modes, file types
-    ├── recoveryengine.h/.cpp -- Chunk-based recovery with QProcess
-    ├── statemanager.h/.cpp   -- JSON state persistence (pause/resume)
-    └── logmodel.h/.cpp       -- Real-time colored log model
+    ├── main.cpp              -- Entry point, tema oscuro
+    ├── mainwindow.h/.cpp     -- UI principal con pestañas, progreso, SMART
+    ├── settingsdialog.h/.cpp -- Config: árbol de discos, SMART, modos, tipos
+    ├── recoveryengine.h/.cpp -- Motor con foremost + photorec + strings + ZIP
+    ├── statemanager.h/.cpp   -- Persistencia JSON para pausa/reanudación
+    └── logmodel.h/.cpp       -- Modelo de log coloreado en tiempo real
 ```
 
-## Features
+## Funcionalidades
 
-### Disk Selection
-- **Tree view** shows all connected disks and their partitions
-- Disks shown with model name, capacity, and partition layout
-- Select any partition to recover from
-- Visual capacity bar with color-coded filesystem type
+### Selección de Disco
+- Árbol con todos los discos y sus particiones (modelo, capacidad, sistema de archivos)
+- Barra de capacidad con codificación de color (azul=NTFS, verde=ext4, rojo=desconocido)
+- **SMART Health**: Muestra salud del disco vía smartctl
+- **Espacio libre**: Verifica espacio disponible antes de iniciar
 
-### Recovery Modes
-| Mode | Description |
+### Modos de Recuperación
+| Modo | Descripción |
 |------|-------------|
-| **Solo reporte** | Quick scan with `foremost -q`, generates report without extracting files |
-| **Recuperacion completa** | Full chunk-based recovery extracting all found documents |
+| **Solo reporte** | Escaneo rápido con foremost + strings, genera reporte sin extraer |
+| **Recuperación completa** | Extracción completa por chunks + foremost + photorec (deep scan opcional) + strings |
 
-### File Type Filtering
-Checkboxes for: .doc .docx .xls .xlsx .ppt .pptx .pdf .rtf .txt .csv
+### Herramientas de Recuperación
+| Herramienta | Propósito |
+|-------------|-----------|
+| **foremost** | Recuperación por cabeceras de archivo (rápido) |
+| **photorec** | Recuperación por estructura de archivos (deep scan) |
+| **dd + strings** | Extracción de cadenas de texto legibles (>50 chars) |
 
-### Advanced Options
-- **Excluir archivos Windows** — Filters out .dll, .exe, .sys, etc.
-- **Busqueda profunda** — Uses both foremost and photorec sequentially
-- **Organizar por tipo** — Sorts recovered files into Word/Excel/PDF/etc folders
-- **Comprimir en ZIP** — Packages results on completion
+### Tipos de Archivo Soportados
+- **Word**: .doc .docx .dot .dotx .docm
+- **Excel**: .xls .xlsx .xlsm .xlsb .xltx .xltm .csv
+- **PowerPoint**: .ppt .pptx .pps .ppsx .pptm
+- **PDF**: .pdf
+- **RTF**: .rtf
+- **Texto**: .txt .text .log .md
 
-### Pause / Resume (across reboot)
-- Processes disk in configurable chunks (default 500 MB)
-- State saved to `~/.config/recovery_qt/state.json`
-- Resume button available even after restarting the computer
-- State includes: offset, chunk number, files found, elapsed time
+### Opciones Avanzadas
+- **Excluir Windows** — Filtra .dll, .exe, .sys, y archivos < 1KB
+- **Búsqueda profunda** — Ejecuta photorec además de foremost
+- **Extraer strings** — Busca cadenas de texto en la partición
+- **Organizar por tipo** — Clasifica en carpetas Word/Excel/PDF/etc
+- **Comprimir ZIP** — Empaqueta resultados al finalizar
 
-### Real-time Monitoring
-- **Eventos tab** — Colored log (INFO=blue, OK=green, WARN=yellow, ERROR=red)
-- **Resumen tab** — Files found by type with running total
-- **Archivos tab** — Directory tree of recovered files
-- Status bar with progress percentage and GB processed
+### Pausa / Reanudación (entre reinicios)
+- Procesa el disco en chunks configurables (default 500 MB)
+- Estado guardado en `~/.config/recovery_qt/state.json`
+- Reanuda desde el chunk exacto donde se quedó
+- Incluye: offset, chunk, archivos encontrados, tiempo transcurrido
 
-### UI Theme
-- Dark theme with custom stylesheet
-- Color-coded progress bars (green=ext4, blue=ntfs, red=unknown)
-- Responsive layout with scrollable settings
+### Monitoreo en Tiempo Real
+- **Eventos** — Log coloreado: INFO=azul, OK=verde, WARN=amarillo, ERROR=rojo
+- **Resumen** — Archivos por tipo con total acumulado
+- **Archivos** — Árbol de directorios de archivos recuperados
+- **SMART Health** — Estado de salud del disco detectado
+- Progreso con porcentaje y GB procesados
 
-## State File
-Location: `~/.config/recovery_qt/state.json`
+### Reportes
+- **Reporte de texto** — Genera reporte detallado al finalizar
+- **Log a archivo** — Guarda log completo en el directorio de salida
+- **Resumen por tipo** — Conteo de documentos recuperados
 
+## Archivo de Estado
+Ubicación: `~/.config/recovery_qt/state.json`
 ```json
 {
   "version": 2,
@@ -87,15 +97,9 @@ Location: `~/.config/recovery_qt/state.json`
   "files_by_type": {"Word": 20, "Excel": 15, "PDF": 7},
   "exclude_windows": true,
   "deep_scan": false,
-  "organize_by_type": true,
-  "report_only": false
+  "use_strings": false,
+  "compress_zip": false,
+  "disk_model": "Samsung SSD 860 EVO",
+  "smart_health": "PASSED"
 }
-```
-
-## Build & Install
-```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-sudo make install
 ```

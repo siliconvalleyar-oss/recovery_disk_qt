@@ -70,6 +70,7 @@ private:
     QLabel *m_elapsedLabel;
     QLabel *m_partitionLabel;
     QLabel *m_modeLabel;
+    QLabel *m_smartHealthLabel;
 
     // Log
     QListView *m_logView;

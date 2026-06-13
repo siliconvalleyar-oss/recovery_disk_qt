@@ -70,7 +70,12 @@ RecoveryState StateManager::fromJson(const QJsonObject &json) const {
     s.deepScan = json["deep_scan"].toBool(false);
     s.organizeByType = json["organize_by_type"].toBool(true);
     s.reportOnly = json["report_only"].toBool(false);
+    s.useStrings = json["use_strings"].toBool(false);
+    s.compressZip = json["compress_zip"].toBool(false);
     s.diskModel = json["disk_model"].toString();
+    s.smartHealth = json["smart_health"].toString();
+    s.logFilePath = json["log_file_path"].toString();
+    s.reportFilePath = json["report_file_path"].toString();
 
     const QJsonArray arr = json["file_types"].toArray();
     for (const auto &v : arr)
@@ -101,7 +106,12 @@ QJsonObject StateManager::toJson(const RecoveryState &state) const {
     json["deep_scan"] = state.deepScan;
     json["organize_by_type"] = state.organizeByType;
     json["report_only"] = state.reportOnly;
+    json["use_strings"] = state.useStrings;
+    json["compress_zip"] = state.compressZip;
     json["disk_model"] = state.diskModel;
+    json["smart_health"] = state.smartHealth;
+    json["log_file_path"] = state.logFilePath;
+    json["report_file_path"] = state.reportFilePath;
 
     QJsonArray arr;
     for (const auto &ft : state.fileTypes)

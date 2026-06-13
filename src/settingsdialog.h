@@ -72,6 +72,10 @@ private:
     QCheckBox *m_chkDeepScan;
     QCheckBox *m_chkOrganize;
     QCheckBox *m_chkCompress;
+    QCheckBox *m_chkUseStrings;
+
+    QLabel *m_smartHealthLabel;
+    QLabel *m_freeSpaceLabel;
 
     QPushButton *m_startBtn;
     QPushButton *m_resumeBtn;
